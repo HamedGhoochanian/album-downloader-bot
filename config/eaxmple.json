@@ -1,0 +1,8 @@
+{
+  "PGHOST": "localhost",
+  "PGUSER": "user",
+  "PGPASSWORD": "password",
+  "PGDATABASE": "db",
+  "PGPORT": 5432,
+  "BOT_TOKEN": "some token"
+}

@@ -12,6 +12,7 @@
   "dependencies": {
     "await-exec": "^0.1.2",
     "config": "^3.3.3",
+    "dotenv": "^8.2.0",
     "nodejs-file-downloader": "^4.2.0",
     "pg": "^8.5.1",
     "telegraf": "^4.0.3"
