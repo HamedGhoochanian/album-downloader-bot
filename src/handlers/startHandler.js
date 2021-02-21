@@ -1,6 +1,5 @@
 const db = require('../db');
 
-// TODO pu each handler in a separate file
 const startHandler = async (ctx) => {
   const [user] = await db.executeQuery({
     text: 'SELECT * FROM users WHERE id=$1',
