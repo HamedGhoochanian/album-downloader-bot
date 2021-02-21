@@ -1,4 +1,5 @@
 const Downloader = require('nodejs-file-downloader');
+const { exec } = require('child_process');
 
 const download = async (url, address, name) => {
   const downloader = new Downloader({
@@ -9,4 +10,18 @@ const download = async (url, address, name) => {
   await downloader.download();
 };
 
+const run = (command) => new Promise((done, failed) => {
+  exec(command, (err, stdout, stderr) => {
+    if (err) {
+      failed(err);
+    } else {
+      done({
+        stdout,
+        stderr,
+      });
+    }
+  });
+});
+
 module.exports.download = download;
+module.exports.run = run;
