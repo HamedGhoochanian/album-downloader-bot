@@ -36,7 +36,7 @@ const startHandler = async (ctx) => {
       values: [chat.id],
     });
     const { state } = album;
-    if (state === 'sent' || state === 'cancelled') {
+    if (state === 'zipped' || state === 'cancelled') {
       ctx.reply('Please enter a name for your album');
       await db.insertOrUpdate({
         text: `UPDATE albums
@@ -54,12 +54,6 @@ const startHandler = async (ctx) => {
     } else if (state === 'waiting_for_songs') {
       ctx.reply(`you have an unfinished album still waiting for songs
       either finish the previous album or cancel it before starting a new one`);
-      log({
-        level: 'info',
-        message: `user with id ${chat.id} tried invalid start`,
-      });
-    } else if (state === 'zipping' || state === 'sending') {
-      ctx.reply('your previous album is still being processed, try again in a minute');
       log({
         level: 'info',
         message: `user with id ${chat.id} tried invalid start`,
