@@ -1,29 +1,62 @@
+const { log } = require('../logger');
 const db = require('../db');
+const utils = require('../utils');
 
 const textHandler = async (ctx) => {
-  const [user] = await db.executeQuery({
-    text: 'SELECT * FROM users WHERE id=$1',
-    values: [ctx.message.chat.id],
+  const { chat } = ctx.message;
+  const [album] = await db.executeQuery({
+    text: `SELECT a.id as id, a.name as name, a.state as state, a.date as date, u.id as user_id
+           FROM users u
+                    join albums a on u.id = a.creator_id
+           WHERE u.id = $1
+           ORDER BY a.date DESC
+           LIMIT 1`,
+    values: [chat.id],
   });
-  if (user === undefined) {
-    ctx.reply('that was your first message');
+
+  if (album === undefined) {
+    ctx.reply('You are not a user, user /start to become one');
+  }
+  const { state } = album;
+  /* if user was waiting for a name, then set the incoming message as the latest album's name
+  * otherwise inform them that the action was uncool */
+  if (state === 'waiting_for_name') {
+    let name = ctx.message.text;
     await db.insertOrUpdate({
-      text: 'INSERT INTO users(id, username, state) VALUES ($1,$2,$3)',
-      values: [ctx.message.chat.id, ctx.message.chat.username, 0],
+      text: `UPDATE albums
+             SET name=$1,
+                 state='waiting_for_songs'
+             WHERE id = $2`,
+      values: [name, album.id],
     });
-    ctx.reply(`Welcome ${ctx.message.chat.first_name}`);
-  } else if (user.state === 1) {
-    await db.insertOrUpdate({
-      text: 'INSERT INTO albums(name, creator_id) VALUES ($1,$2)',
-      values: [ctx.message.text, user.id],
+    log({
+      level: 'info',
+      message: `set name ${name} for album with id ${album.id}`,
     });
-    await db.insertOrUpdate({
-      text: 'UPDATE users SET latest_album_id=(SELECT max(id) FROM albums WHERE creator_id=$1) WHERE id=$1',
-      values: [user.id],
-    });
-    ctx.reply('Album name received');
+    try {
+      name = name.replace(/\s+/g, '-');
+      console.log(name);
+      await utils.run(`mkdir -p ./downloads/${chat.id}/"${name}-${album.date.getTime()}"`);
+      log({
+        level: 'info',
+        message: `created directory for album ${album.id}`,
+      });
+    } catch (e) {
+      log({
+        level: 'error',
+        message: e.message,
+      });
+    }
   } else {
-    ctx.reply('invalid');
+    await ctx.replyWithPhoto({
+      source: './resources/not_supposed.jpg',
+    }, {
+      caption: 'uncool👀',
+    });
+    log({
+      level: 'info',
+      message: `user ${album.user_id} informed of invalid action`,
+    });
   }
 };
 

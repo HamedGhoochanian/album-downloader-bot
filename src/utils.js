@@ -1,4 +1,5 @@
 const Downloader = require('nodejs-file-downloader');
+const appRoot = require('app-root-path');
 const { exec } = require('child_process');
 
 const download = async (url, address, name) => {
@@ -25,3 +26,4 @@ const run = (command) => new Promise((done, failed) => {
 
 module.exports.download = download;
 module.exports.run = run;
+module.exports.appRoot = appRoot;

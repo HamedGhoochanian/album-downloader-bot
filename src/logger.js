@@ -1,19 +1,21 @@
-const winston = require('winston');
+const { appendFile } = require('fs');
 
-const logger = winston.createLogger({
-  level: 'info',
-  transports: [
-    new winston.transports.File({
-      filename: './logs/error.log',
-      format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
-    }),
-  ],
-});
+const logAddress = './logs/info.log';
 
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
-  }));
+async function log(message) {
+  return new Promise((resolve, reject) => {
+    const str = JSON.stringify(message);
+    appendFile(logAddress, `${str} \n`, (err) => {
+      if (err) {
+        reject(err);
+      } else {
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(str);
+        }
+        resolve();
+      }
+    });
+  });
 }
 
-module.exports = logger;
+module.exports.log = log;

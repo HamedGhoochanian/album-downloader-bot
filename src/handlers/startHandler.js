@@ -1,29 +1,70 @@
 const db = require('../db');
+const { log } = require('../logger');
+const { run } = require('../utils');
 
 const startHandler = async (ctx) => {
+  const { chat } = ctx.message;
   const [user] = await db.executeQuery({
     text: 'SELECT * FROM users WHERE id=$1',
-    values: [ctx.message.chat.id],
+    values: [chat.id],
   });
+
   if (user === undefined) {
-    // TODO add logging here
     await db.insertOrUpdate({
-      text: 'INSERT INTO users(id, username, state) VALUES ($1,$2,$3)',
-      values: [ctx.message.chat.id, ctx.message.chat.username, 1],
+      text: 'INSERT INTO users(id, username) VALUES ($1,$2)',
+      values: [chat.id, chat.first_name],
     });
     ctx.reply(`Welcome ${ctx.message.chat.first_name}`);
     ctx.reply('Please enter the album/playlist name');
-  } else if (user.state === 1) {
-    ctx.reply('You have not finished your previous session');
-    ctx.reply('Please enter the album/playlist name');
-  } else if (user.state === 2) {
-    ctx.reply('You have not finished your previous session');
-  } else {
-    await db.insertOrUpdate({
-      text: 'UPDATE users SET state=1 WHERE id=$1',
-      values: [ctx.message.chat.id],
+    const album = await db.insertOrUpdate({
+      text: `INSERT INTO albums(name, creator_id, date, state)
+             VALUES (NULL, $1, NOW(), 'waiting_for_name')`,
+      values: [chat.id],
     });
-    ctx.reply('Please enter the album/playlist name');
+    log({
+      level: 'info',
+      message: `startHandler created user with id: ${chat.id}`,
+    });
+  } else {
+    const [album] = await db.executeQuery({
+      text: `SELECT a.id as id, a.name as name, a.state as state, a.date as date
+             FROM users u
+                      join albums a on u.id = a.creator_id
+             WHERE u.id = $1
+             ORDER BY a.date DESC
+             LIMIT 1`,
+      values: [chat.id],
+    });
+    const { state } = album;
+    if (state === 'sent' || state === 'cancelled') {
+      ctx.reply('Please enter a name for your album');
+      await db.insertOrUpdate({
+        text: `UPDATE albums
+               SET state='waiting_for_name'
+               WHERE id = $1`,
+        values: [album.id],
+      });
+    } else if (state === 'waiting_for_name') {
+      ctx.reply(`You have an unfinished album still waiting for a name
+      either continue it or cancel it before starting a new album`);
+      log({
+        level: 'info',
+        message: `user with id ${chat.id} tried invalid start`,
+      });
+    } else if (state === 'waiting_for_songs') {
+      ctx.reply(`you have an unfinished album still waiting for songs
+      either finish the previous album or cancel it before starting a new one`);
+      log({
+        level: 'info',
+        message: `user with id ${chat.id} tried invalid start`,
+      });
+    } else if (state === 'zipping' || state === 'sending') {
+      ctx.reply('your previous album is still being processed, try again in a minute');
+      log({
+        level: 'info',
+        message: `user with id ${chat.id} tried invalid start`,
+      });
+    }
   }
 };
 

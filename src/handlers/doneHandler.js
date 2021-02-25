@@ -1,43 +1,65 @@
-const exec = require('await-exec');
+const config = require('config');
+const utils = require('../utils');
 const db = require('../db');
+const { log } = require('../logger');
 
 const doneHandler = async (ctx) => {
-  const [user] = await db.executeQuery({
-    text: 'SELECT * FROM users WHERE id = $1',
-    values: [ctx.message.chat.id],
+  const { chat } = ctx.message;
+  const [album] = await db.executeQuery({
+    text: `SELECT a.id as id, a.name as name, a.state as state, a.date as date, u.id as user_id
+           FROM users u
+                    join albums a on u.id = a.creator_id
+           WHERE u.id = $1
+           ORDER BY a.date DESC
+           LIMIT 1`,
+    values: [chat.id],
   });
-  if (user === undefined) {
-    ctx.reply('U is not a member');
-  } else if (user.state === 0) {
-    ctx.reply('U haven\'t started an album');
-  } else if (user.state === 1) {
-    ctx.reply('sad to see you go');
-  } else {
-    // TODO add logging for done command
+  const { state } = album;
+  if (album === undefined) {
+    ctx.reply('U is not a user');
+  } else if (state === 'waiting_for_name') {
+    ctx.reply('your album has no name, first give it a name');
+  } else if (state === 'zipping') {
+    ctx.reply('your album is getting processed');
+  } else if (state === 'waiting_for_songs') {
     const songs = await db.executeQuery({
-      text: `SELECT s.file_name as name, a.name as album
+      text: `SELECT s.id as song_id, a.id as album_id, a.date as album_date, a.name as album_name
              FROM songs s
                       join albums a on a.id = s.album_id
-                      join users u on u.latest_album_id = a.id
-             WHERE u.id = $1
-             GROUP BY s.id, a.name`,
+             WHERE s.album_id = (SELECT a.id as id
+                                 FROM users u
+                                          join albums a on u.id = a.creator_id
+                                 WHERE u.id = $1
+                                 ORDER BY a.date DESC
+                                 LIMIT 1)`,
       values: [ctx.message.chat.id],
     });
-    const { album } = songs[0];
-    await exec(`mkdir "./temp/${album}"`);
-    // TODO add logging for file operations
-    // eslint-disable-next-line no-restricted-syntax
-    for (const s of songs) {
-      // eslint-disable-next-line no-await-in-loop
-      await exec(`mv "./temp/${s.name}" "./temp/${album}"`);
+    if (songs.length === 0) {
+      ctx.reply('this album has no songs yet, send me some songs first');
+      return;
     }
-    const zipPath = `"./temp/${album}.zip"`;
-    await exec(`zip -r ${zipPath} "./temp/${album}"`);
-    await db.insertOrUpdate({
-      text: 'UPDATE users SET state = 0 WHERE id = $1',
-      values: [ctx.message.chat.id],
-    });
-    await ctx.replyWithDocument({ source: `./temp/${album}.zip` }, { caption: 'test' });
+    try {
+      const albumDash = songs[0].album_name.replace(/\s+/g, '-');
+      const timeStamp = songs[0].album_date.getTime();
+      const serverIP = config.get('server_ip');
+      const serverPort = config.get('server_port');
+      const zipPath = `./downloads/${chat.id}/${albumDash}-${timeStamp}`;
+      await utils.run(`zip -r ${zipPath}/${albumDash}.zip ${zipPath}`);
+      ctx.reply(`Your download link is ${serverIP}:${serverPort}/`
+        + `user/${chat.id}/album/${albumDash}-${timeStamp}/file/${albumDash}.zip`);
+      await db.insertOrUpdate({
+        text: `UPDATE albums
+               SET state='zipped'
+               WHERE id = $1`,
+        values: [songs[0].album_id],
+      });
+    } catch (e) {
+      log({
+        level: 'error',
+        message: e.message,
+        time: new Date(),
+      });
+    }
   }
 };
 
