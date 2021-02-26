@@ -10,6 +10,8 @@ bot.command('start', handlers.commands.startHandler);
 
 bot.command('done', handlers.commands.doneHandler);
 
+bot.command('cancel', handlers.commands.cancelHandler);
+
 bot.on('text', handlers.types.textHandler);
 
 bot.on('audio', handlers.types.audioHandler);
