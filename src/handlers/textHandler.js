@@ -33,6 +33,7 @@ const textHandler = async (ctx) => {
       level: 'info',
       message: `set name ${name} for album with id ${album.id}`,
     });
+    ctx.reply('Album created, now send me some songs');
     try {
       name = name.replace(/\s+/g, '-');
       console.log(name);
