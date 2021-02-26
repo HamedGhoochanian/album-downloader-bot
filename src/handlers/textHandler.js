@@ -60,4 +60,4 @@ const textHandler = async (ctx) => {
   }
 };
 
-exports.textHandler = textHandler;
+module.exports = textHandler;

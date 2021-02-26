@@ -44,4 +44,4 @@ const audioHandler = async (ctx) => {
   }
 };
 
-exports.audioHandler = audioHandler;
+module.exports = audioHandler;

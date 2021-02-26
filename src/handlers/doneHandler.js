@@ -63,4 +63,4 @@ const doneHandler = async (ctx) => {
   }
 };
 
-exports.doneHandler = doneHandler;
+module.exports = doneHandler;

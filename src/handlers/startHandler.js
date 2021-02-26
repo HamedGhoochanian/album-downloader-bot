@@ -1,6 +1,5 @@
 const db = require('../db');
 const { log } = require('../logger');
-const { run } = require('../utils');
 
 const startHandler = async (ctx) => {
   const { chat } = ctx.message;
@@ -16,6 +15,7 @@ const startHandler = async (ctx) => {
     });
     ctx.reply(`Welcome ${ctx.message.chat.first_name}`);
     ctx.reply('Please enter the album/playlist name');
+    // eslint-disable-next-line no-unused-vars
     const album = await db.insertOrUpdate({
       text: `INSERT INTO albums(name, creator_id, date, state)
              VALUES (NULL, $1, NOW(), 'waiting_for_name')`,
@@ -62,4 +62,4 @@ const startHandler = async (ctx) => {
   }
 };
 
-exports.startHandler = startHandler;
+module.exports = startHandler;
